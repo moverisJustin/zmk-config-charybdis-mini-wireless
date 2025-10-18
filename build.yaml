@@ -14,49 +14,41 @@ jobs:
           - board: seeeduino_xiao_ble
             shield: charybdis_dongle prospector_adapter
             artifact-name: prospector_dongle-seeeduino_xiao_ble
+            cmake-args: ""
 
           # Left half
           - board: nice_nano_v2
             shield: charybdis_left
             artifact-name: charybdis_left-nice_nano_v2
+            cmake-args: "-DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n"
 
           # Right half
           - board: nice_nano_v2
             shield: charybdis_right
             artifact-name: charybdis_right-nice_nano_v2
+            cmake-args: "-DCONFIG_ZMK_SPLIT=y"
 
           # Reset firmware for dongle
           - board: seeeduino_xiao_ble
             shield: ""
             artifact-name: settings_reset-seeeduino_xiao_ble
+            cmake-args: "-DCONFIG_ZMK_EXTRA_AGGRESSIVE_LOGGING=y"
 
           # Reset firmware for keyboard halves
           - board: nice_nano_v2
             shield: ""
             artifact-name: settings_reset-nice_nano_v2
+            cmake-args: "-DCONFIG_ZMK_EXTRA_AGGRESSIVE_LOGGING=y"
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Prepare variables
-        id: variables
-        run: |
-          if [ -z "${{ matrix.shield }}" ]; then
-            EXTRA_CMAKE_ARGS="-DCONFIG_ZMK_EXTRA_AGGRESSIVE_LOGGING=y"
-          else
-            EXTRA_CMAKE_ARGS="-DCONFIG_ZMK_SPLIT=y"
-            if [[ "${{ matrix.shield }}" == *"_left"* ]]; then
-              EXTRA_CMAKE_ARGS="$EXTRA_CMAKE_ARGS -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n"
-            fi
-          fi
-          echo "extra-cmake-args=$EXTRA_CMAKE_ARGS" >> $GITHUB_OUTPUT
 
       - name: Build
         uses: zmkfirmware/zmk-build-action@v1
         with:
           board: ${{ matrix.board }}
           shield: ${{ matrix.shield }}
-          extra-cmake-args: ${{ steps.variables.outputs.extra-cmake-args }}
+          extra-cmake-args: ${{ matrix.cmake-args }}
           artifact-name: ${{ matrix.artifact-name }}
           cache-key-prefix: ${{ matrix.board }}-${{ matrix.shield }}
           config-path: config
