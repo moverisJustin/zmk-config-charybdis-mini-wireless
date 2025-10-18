@@ -1,23 +1,71 @@
-# This file generates the GitHub Actions matrix
-# For simple board + shield combinations, add them
-# to the top level board and shield arrays, for more
-# control, add individual board + shield combinations to
-# the `include` property, e.g:
-#
-# board: [ "nice_nano_v2" ]
-# shield: [ "corne_left", "corne_right" ]
-# include:
-#   - board: bdn9_rev2
-#   - board: nice_nano_v2
-#     shield: reviung41
-#
----
-include:
-  - board: nice_nano_v2
-    shield: charybdis_left
-  - board: nice_nano_v2
-    shield: charybdis_right
-    snippet: studio-rpc-usb-uart
-    cmake-args: -DCONFIG_ZMK_STUDIO=y
-  - board: nice_nano_v2
-    shield: settings_reset
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:latest
+    name: Build
+
+    strategy:
+      matrix:
+        include:
+          # Prospector Dongle
+          - board: seeeduino_xiao_ble
+            shield: charybdis_dongle prospector_adapter
+            artifact-name: prospector_dongle-seeeduino_xiao_ble
+
+          # Left half
+          - board: nice_nano_v2
+            shield: charybdis_left
+            artifact-name: charybdis_left-nice_nano_v2
+
+          # Right half
+          - board: nice_nano_v2
+            shield: charybdis_right
+            artifact-name: charybdis_right-nice_nano_v2
+
+          # Reset firmware for dongle
+          - board: seeeduino_xiao_ble
+            shield: ""
+            artifact-name: settings_reset-seeeduino_xiao_ble
+
+          # Reset firmware for keyboard halves
+          - board: nice_nano_v2
+            shield: ""
+            artifact-name: settings_reset-nice_nano_v2
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Prepare variables
+        id: variables
+        run: |
+          if [ -z "${{ matrix.shield }}" ]; then
+            EXTRA_CMAKE_ARGS="-DCONFIG_ZMK_EXTRA_AGGRESSIVE_LOGGING=y"
+          else
+            EXTRA_CMAKE_ARGS="-DCONFIG_ZMK_SPLIT=y"
+            if [[ "${{ matrix.shield }}" == *"_left"* ]]; then
+              EXTRA_CMAKE_ARGS="$EXTRA_CMAKE_ARGS -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n"
+            fi
+          fi
+          echo "extra-cmake-args=$EXTRA_CMAKE_ARGS" >> $GITHUB_OUTPUT
+
+      - name: Build
+        uses: zmkfirmware/zmk-build-action@v1
+        with:
+          board: ${{ matrix.board }}
+          shield: ${{ matrix.shield }}
+          extra-cmake-args: ${{ steps.variables.outputs.extra-cmake-args }}
+          artifact-name: ${{ matrix.artifact-name }}
+          cache-key-prefix: ${{ matrix.board }}-${{ matrix.shield }}
+          config-path: config
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ${{ matrix.artifact-name }}-zmk
+          path: |
+            firmware/zmk.uf2
+            firmware/zmk.hex
