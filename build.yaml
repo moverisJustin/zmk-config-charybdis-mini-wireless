@@ -28,18 +28,6 @@ jobs:
             artifact-name: charybdis_right-nice_nano_v2
             cmake-args: "-DCONFIG_ZMK_SPLIT=y"
 
-          # Reset firmware for dongle
-          - board: seeeduino_xiao_ble
-            shield: ""
-            artifact-name: settings_reset-seeeduino_xiao_ble
-            cmake-args: "-DCONFIG_ZMK_EXTRA_AGGRESSIVE_LOGGING=y"
-
-          # Reset firmware for keyboard halves
-          - board: nice_nano_v2
-            shield: ""
-            artifact-name: settings_reset-nice_nano_v2
-            cmake-args: "-DCONFIG_ZMK_EXTRA_AGGRESSIVE_LOGGING=y"
-
     steps:
       - uses: actions/checkout@v3
 
